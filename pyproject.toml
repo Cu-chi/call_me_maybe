@@ -8,6 +8,8 @@ dependencies = [
     "flake8>=7.3.0",
     "llm-sdk",
     "mypy>=1.20.2",
+    "numpy>=2.4.4",
+    "pydantic>=2.13.3",
 ]
 
 [tool.uv.workspace]
