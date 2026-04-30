@@ -19,11 +19,15 @@ def get_python_types(type_str: str) -> Type:
     raise SchemaTypeError(f"type JSON '{type_str}' is not supported")
 
 
-def create_models_from_json(path: str) -> dict[str, Type[BaseModel]]:
+def get_functions_json(path: str) -> list[dict[str, Any]]:
     with open(path, "r") as f:
         functions: list[dict[str, Any]] = json.load(f)
+    return functions
 
-    models: dict[str, Type[BaseModel]] = {}
+
+def create_models_from_json(functions: list[dict[str, Any]])\
+     -> dict[str, BaseModel]:
+    models: dict[str, BaseModel] = {}
     for func in functions:
         func_name: str = func["name"]
         params: dict[str, Any] = func.get('parameters', {})
