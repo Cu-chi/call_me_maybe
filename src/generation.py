@@ -3,21 +3,36 @@ from src.constrainer import JSONConstrained, JSONState
 import numpy as np
 from pydantic import BaseModel
 from typing import Any
+import json
 
 
 def pre_prompt(input: str, functions: list[dict[str, Any]]):
-    prompt: str = f"""
-You are an expert in categorization.
-Given the following list of function,
-generate a valid JSON that follow the function format and parameters
-which answer to this specific question '{input}':
+    tools_schema = json.dumps(functions, indent=2)
+    prompt: str = "You are an expert AI routing agent."
+    prompt += "Your task is to map the user's natural "
+    prompt += "language input to the exact function that can answer it."
+    prompt += f"\n\nAVAILABLE FUNCTIONS:\n{tools_schema}\n\n"
+    prompt += "RULES:\n"
+    prompt += "1. Analyze the USER INPUT and select the most appropriate "
+    prompt += "function from the list above.\n"
+    prompt += "2. Extract the required parameters from the USER INPUT.\n"
+    prompt += "3. If no function matches the request, output \"unknown\" "
+    prompt += "for the function name.\n"
+    prompt += "4. Output strictly valid JSON. Do not write explanations, "
+    prompt += "markdown formatting, or any text outside the JSON object.\n"
+    prompt += f"""
+EXPECTED JSON OUTPUT FORMAT:
+{{
+  "prompt": "The original natural-language request",
+  "name": "The exact name of the selected function (or 'unknown')",
+  "parameters": {{
+    "param_1": "extracted_value"
+  }}
+}}
+
+USER INPUT:
+"{input}"
 """
-    for function in functions:
-        prompt += f"{function['name']}: {function['description']} "
-        prompt += "parameters are"
-        for param in function["parameters"]:
-            prompt += f" '{param}' ({function['parameters'][param]['type']})"
-        prompt += "\n"
     return prompt
 
 
@@ -25,7 +40,7 @@ def generate_function(prompt: str, llm: Small_LLM_Model,
                       reversed_vocab: dict[int, str],
                       models: dict[str, BaseModel]) -> str:
     input_ids: list[int] = llm.encode(prompt)[0].tolist()
-    max_tokens: int = 20
+    max_tokens: int = 50
     generated_text: str = ""
     constrainer: JSONConstrained = JSONConstrained(models)
     for _ in range(max_tokens):
