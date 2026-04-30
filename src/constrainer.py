@@ -133,7 +133,7 @@ class JSONConstrained:
                and self.current_key == "name":
                 self.current_func_name = self.buffer
             return True
-        if char in string.printable:
+        if char in string.printable and char not in string.whitespace:
             self.buffer += char
             return True
         return False
