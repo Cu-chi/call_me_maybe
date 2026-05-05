@@ -1,228 +1,269 @@
-from enum import Enum, auto
 from pydantic import BaseModel
+from typing import Type
+import json
 import string
 
+from src.utils import from_model_get_dict_fields
 
-class JSONState(Enum):
-    """Enum used to represent a state of
-    the JSON constrained decoding
-    """
-    EXPECT_OBJECT_START = auto()
-    EXPECT_OBJECT_END = auto()
-    EXPECT_KEY = auto()
-    EXPECT_COLON = auto()
-    EXPECT_COMMA = auto()
+State = tuple[str, str, str, str, bool, frozenset[str]]
+"""Tuple that describes the current state of the schema
+0: State Key
+1: buffer (used during key/value generation)
+2: function name
+3: param name
+4: escaped (used to change behavior of char in string value)
+5: parsed params (params that are already set in the dict)
+"""
 
-    EXPECT_STRING_VALUE = auto()
-    EXPECT_NUMBER_VALUE = auto()
-    EXPECT_BOOLEAN_VALUE = auto()
+"""
+All states, in order:
+START
 
-    IN_STRING = auto()
-    IN_NUMBER = auto()
-    IN_BOOLEAN = auto()
+EXPECT_PROMPT_KEY
+In_PROMPT_KEY
+EXPECT_COLON_PROMPT
+EXPECT_PROMPT_VAL
+IN_PROMPT_VAL
+EXPECT_COMMA_PROMPT
+
+EXPECT_NAME_KEY
+IN_NAME_KEY
+EXPECT_COLON_NAME
+EXPECT_NAME_VAL
+IN_NAME_VAL
+EXPECT_COMMA_NAME
+
+EXPECT_PARAMS_KEY
+IN_PARAMS_KEY
+EXPECT_COLON_PARAMS
+
+EXPECT_PARAM_START
+EXPECT_PARAM_KEY_OR_END
+IN_PARAM_KEY
+EXPECT_COLON_PARAM
+
+EXPECT_STRING_VAL or EXPECT_NUMBER_VAL or EXPECT_BOOL_VAL
+IN_STRING or IN_NUMBER or IN_BOOL
+EXPECT_PARAM_COMMA_OR_END
+EXPECT_PARAM_KEY
+etc...
+
+EXPECT_END
+"""
 
 
-class JSONConstrained:
-    def __init__(self, models: dict[str, BaseModel]) -> None:
-        self.state: list[JSONState] = [JSONState.EXPECT_OBJECT_START]
-        self.models = models
-        self.current_func_name = ""
+class SchemaConstrainer:
+    def __init__(self, models: dict[str, Type[BaseModel]], input_str: str):
+        self.schemas = models
+        self.prompt = json.dumps(input_str)[1:-1]
+        print(self.prompt)
 
-        self.is_escaped = False
-        self.current_key = ""
-        self.buffer = ""
+    def initial_state(self) -> State:
+        return ("START", "", "", "", False, frozenset())
 
-    def get_allowed_chars(self) -> str:
-        if not self.state:
-            return ""
-        cur_state: JSONState = self.state[-1]
-        if cur_state == JSONState.EXPECT_OBJECT_START:
-            return "{"
-        elif cur_state == JSONState.EXPECT_OBJECT_END:
-            return "}"
-        elif cur_state == JSONState.EXPECT_KEY:
-            return "\"}"
-        elif cur_state == JSONState.EXPECT_COLON:
-            return ":"
-        elif cur_state == JSONState.EXPECT_COMMA:
-            return ",}"
-        elif cur_state == JSONState.EXPECT_STRING_VALUE:
-            return "\""
-        elif cur_state == JSONState.EXPECT_NUMBER_VALUE:
-            return "-0123456789"
-        elif cur_state == JSONState.EXPECT_BOOLEAN_VALUE:
-            return "truefals"
-        elif cur_state == JSONState.IN_STRING:
-            return string.printable
-        elif cur_state == JSONState.IN_NUMBER:
-            return "0123456789.,}"
-        elif cur_state == JSONState.IN_BOOLEAN:
-            return "truefals,}"
-        return ""
+    def update_state(self, current: State, token: str) -> State | None:
+        state, buffer, func_name, param_name, escaped, parsed_params = current
+        for char in token:
+            res = self.consume(state, buffer, func_name, param_name,
+                               escaped, parsed_params, char)
+            if res is None:
+                return None
+            state, buffer, func_name, param_name, escaped, parsed_params = res
+        return (state, buffer, func_name, param_name, escaped, parsed_params)
 
-    def _handle_object_start(self, char: str) -> bool:
-        if char == "{":
-            self.state.pop()
-            self.state.append(JSONState.EXPECT_OBJECT_END)
-            self.state.append(JSONState.EXPECT_KEY)
-            return True
-        return False
-
-    def _handle_object_end(self, char: str) -> bool:
-        if char == "}":
-            self.state.pop()
-            # TODO:
-            # mettre check pydantic pour prochain EXPECT valeur
-            return True
-        return False
-
-    def _handle_expect_comma(self, char: str) -> bool:
-        if char == ",":
-            self.state.pop()
-            self.state.append(JSONState.EXPECT_KEY)
-            # TODO:
-            # mettre check pydantic pour prochain EXPECT valeur
-            return True
-        elif char == "}":
-            self.state.pop()
-            self.update_state(char)
-            return True
-        return False
-
-    def _handle_expect_key(self, char: str) -> bool:
-        if char == "\"":
-            self.state.pop()
-            self.state.append(JSONState.EXPECT_COLON)
-            self.state.append(JSONState.IN_STRING)
-            self.buffer = ""
-            self.is_escaped = False
-            return True
-        if char == "}":
-            self.state.pop()
-            self.buffer = ""
-            self.is_escaped = False
-            return True
-        return False
-
-    def _handle_expect_colon(self, char: str) -> bool:
-        if char == ":":
-            self.state.pop()
-            self.state.append(JSONState.EXPECT_COMMA)
-            self.state.append(JSONState.EXPECT_STRING_VALUE)
-            return True
-            # TODO:
-            # mettre check pydantic pour prochain EXPECT valeur
-        return False
-
-    def _handle_in_string(self, char: str) -> bool:
-        if self.is_escaped:
-            self.buffer += char
-            self.is_escaped = False
-            return True
-
-        if char == "\\":
-            self.is_escaped = True
-            return True
-
-        if char == "\"":
-            self.state.pop()
-            if self.state[-1] == JSONState.EXPECT_COLON:
-                self.current_key = self.buffer
-
-            if self.state[-1] == JSONState.EXPECT_COMMA \
-               and self.current_key == "name":
-                self.current_func_name = self.buffer
-            return True
-        if char in string.printable and char not in string.whitespace:
-            self.buffer += char
-            return True
-        return False
-
-    def _handle_expect_string(self, char: str) -> bool:
-        if char == "\"":
-            self.state.pop()
-            self.state.append(JSONState.IN_STRING)
-            return True
-        return False
-
-    def _handle_expect_number(self, char: str) -> bool:
-        self.state.pop()
-        self.state.append(JSONState.IN_NUMBER)
-        self.buffer = ""
-        return self._handle_in_number(char)
-
-    def _handle_in_number(self, char: str) -> bool:
-        if char == "," or char == "}":
-            self.state.pop()
-            return self.update_state(char)
-        if char in "-0123456789":
-            self.buffer += char
-            return True
-        return False
-
-    def _handle_expect_boolean(self, char: str) -> bool:
-        self.state.pop()
-        self.state.append(JSONState.IN_BOOLEAN)
-        self.buffer = ""
-        return self._handle_in_boolean(char)
-
-    def _handle_in_boolean(self, char: str) -> bool:
-        if char == "," or char == "}":
-            self.state.pop()
-            return self.update_state(char)
-        if char in "truefals":
-            if self.buffer + char == "true" or self.buffer + char == "false":
-                self.state.pop()
-                self.state.append(JSONState.EXPECT_COMMA)
-                return True
-            if "true".startswith(self.buffer + char) \
-               or "false".startswith(self.buffer + char):
-                self.buffer += char
-                return True
-        return False
-
-    def update_state(self, generated_token: str) -> bool:
-        result = True
-        for char in generated_token:
-            if not self.state:
-                return False
-            cur_state = self.state[-1]
-            if char in string.whitespace and cur_state != JSONState.IN_STRING:
-                continue
-            match cur_state:
-                case JSONState.EXPECT_OBJECT_START:
-                    result = self._handle_object_start(char)
-                case JSONState.EXPECT_KEY:
-                    result = self._handle_expect_key(char)
-                case JSONState.EXPECT_COLON:
-                    result = self._handle_expect_colon(char)
-                case JSONState.EXPECT_COMMA:
-                    result = self._handle_expect_comma(char)
-                case JSONState.EXPECT_OBJECT_END:
-                    result = self._handle_object_end(char)
-                case JSONState.EXPECT_STRING_VALUE:
-                    result = self._handle_expect_string(char)
-                case JSONState.IN_STRING:
-                    result = self._handle_in_string(char)
-                case JSONState.EXPECT_NUMBER_VALUE:
-                    result = self._handle_expect_number(char)
-                case JSONState.IN_NUMBER:
-                    result = self._handle_in_number(char)
-                case JSONState.EXPECT_BOOLEAN_VALUE:
-                    result = self._handle_expect_boolean(char)
-                case JSONState.IN_BOOLEAN:
-                    result = self._handle_in_boolean(char)
-                case _:
-                    raise RuntimeError(f"Unknown JSON state '{cur_state}'")
-            if not result:
-                break
-        return result
-
-    def clone(self) -> 'JSONConstrained':
-        instance = JSONConstrained(self.models)
-        instance.state = self.state.copy()
-        instance.is_escaped = self.is_escaped
-        instance.buffer = self.buffer
-        instance.current_func_name = self.current_func_name
-        instance.current_key = self.current_key
-        return instance
+    def consume(self, state: str, buffer: str, func_name: str,
+                param_name: str, escaped: bool,
+                parsed_params: frozenset[str], char: str):
+        if state == "START":
+            if char == "{":
+                return ("EXPECT_PROMPT_KEY", buffer, func_name,
+                        param_name, escaped, parsed_params)
+        elif state == "EXPECT_PROMPT_KEY":
+            if char == "\"":
+                return ("IN_PROMPT_KEY", buffer, func_name,
+                        param_name, escaped, parsed_params)
+        elif state == "IN_PROMPT_KEY":
+            if char == "\"":
+                if buffer == "prompt":
+                    return ("EXPECT_COLON_PROMPT", "", func_name, param_name,
+                            escaped, parsed_params)
+                return None
+            if "prompt".startswith(buffer + char):
+                return (state, buffer + char, func_name, param_name,
+                        escaped, parsed_params)
+        elif state == "EXPECT_COLON_PROMPT":
+            if char == ":":
+                return ("EXPECT_PROMPT_VAL", "", func_name, param_name,
+                        escaped, parsed_params)
+        elif state == "EXPECT_PROMPT_VAL":
+            if char == "\"":
+                return ("IN_PROMPT_VAL", "", func_name, param_name,
+                        escaped, parsed_params)
+        elif state == "IN_PROMPT_VAL":
+            if char == "\"":
+                if buffer == self.prompt:
+                    return ("EXPECT_COMMA_PROMPT", "", func_name, param_name,
+                            escaped, parsed_params)
+                return None
+            if self.prompt.startswith(buffer + char):
+                return (state, buffer + char, func_name, param_name,
+                        escaped, parsed_params)
+        elif state == "EXPECT_COMMA_PROMPT":
+            if char == ",":
+                return ("EXPECT_NAME_KEY", "", func_name, param_name,
+                        escaped, parsed_params)
+        elif state == "EXPECT_NAME_KEY":
+            if char == "\"":
+                return ("IN_NAME_KEY", "", func_name, param_name,
+                        escaped, parsed_params)
+        elif state == "IN_NAME_KEY":
+            if char == "\"":
+                if buffer == "name":
+                    return ("EXPECT_COLON_NAME", "", func_name, param_name,
+                            escaped, parsed_params)
+                return None
+            if "name".startswith(buffer + char):
+                return (state, buffer + char, func_name, param_name,
+                        escaped, parsed_params)
+        elif state == "EXPECT_COLON_NAME":
+            if char == ":":
+                return ("EXPECT_NAME_VAL", "", func_name, param_name,
+                        escaped, parsed_params)
+        elif state == "EXPECT_NAME_VAL":
+            if char == "\"":
+                return ("IN_NAME_VAL", "", func_name, param_name,
+                        escaped, parsed_params)
+        elif state == "IN_NAME_VAL":
+            if char == "\"":
+                if buffer in self.schemas or buffer == "unknown":
+                    return ("EXPECT_COMMA_NAME", "", buffer, param_name,
+                            escaped, parsed_params)
+                return None
+            if any(fname.startswith(buffer + char) for fname in self.schemas) \
+               or "unknown".startswith(buffer + char):
+                return (state, buffer + char, func_name, param_name,
+                        escaped, parsed_params)
+        elif state == "EXPECT_COMMA_NAME":
+            if char == ",":
+                return ("EXPECT_PARAMS_KEY", "", func_name, param_name,
+                        escaped, parsed_params)
+        elif state == "EXPECT_PARAMS_KEY":
+            if char == "\"":
+                return ("IN_PARAMS_KEY", "", func_name, param_name,
+                        escaped, parsed_params)
+        elif state == "IN_PARAMS_KEY":
+            if char == "\"":
+                if buffer == "parameters":
+                    return ("EXPECT_COLON_PARAMS", "", func_name, param_name,
+                            escaped, parsed_params)
+                return None
+            if "parameters".startswith(buffer + char):
+                return (state, buffer + char, func_name, param_name,
+                        escaped, parsed_params)
+        elif state == "EXPECT_COLON_PARAMS":
+            if char == ":":
+                return ("EXPECT_PARAM_START", "", func_name, param_name,
+                        escaped, parsed_params)
+        elif state == "EXPECT_PARAM_START":
+            if char == "{":
+                return ("EXPECT_PARAM_KEY_OR_END", "", func_name, param_name,
+                        escaped, parsed_params)
+        elif state == "EXPECT_PARAM_KEY_OR_END":
+            if char == "}" and func_name == "unknown":
+                return ("EXPECT_END", "", func_name, param_name,
+                        escaped, parsed_params)
+            if char == "\"":
+                return ("IN_PARAM_KEY", "", func_name, param_name,
+                        escaped, parsed_params)
+        elif state == "IN_PARAM_KEY":
+            fields = from_model_get_dict_fields(self.schemas[func_name])
+            if char == "\"":
+                if buffer in fields.keys() and buffer not in parsed_params:
+                    return ("EXPECT_COLON_PARAM", "", func_name, buffer,
+                            escaped, parsed_params)
+            if any(pname.startswith(buffer + char) for pname in fields.keys()):
+                return ("IN_PARAM_KEY", buffer + char, func_name, param_name,
+                        escaped, parsed_params)
+        elif state == "EXPECT_COLON_PARAM":
+            if char == ":":
+                fields = from_model_get_dict_fields(self.schemas[func_name])
+                ptype = fields[param_name]
+                if ptype is str:
+                    return ("EXPECT_STRING_VAL", "", func_name, param_name,
+                            escaped, parsed_params)
+                elif ptype is int or ptype is float:
+                    return ("EXPECT_NUMBER_VAL", "", func_name, param_name,
+                            escaped, parsed_params)
+                elif ptype is bool:
+                    return ("EXPECT_BOOL_VAL", "", func_name, param_name,
+                            escaped, parsed_params)
+        elif state == "EXPECT_STRING_VAL":
+            if char == "\"":
+                return ("IN_STRING_VAL", "", func_name, param_name,
+                        False, parsed_params)
+        elif state == "IN_STRING_VAL":
+            if escaped:
+                return ("IN_STRING_VAL", buffer + char, func_name,
+                        param_name, False, parsed_params)
+            if char == "\\":
+                return ("IN_STRING_VAL", buffer, func_name,
+                        param_name, True, parsed_params)
+            if char == "\"":
+                return ("EXPECT_PARAM_COMMA_OR_END", "", func_name, param_name,
+                        escaped, parsed_params | frozenset([param_name]))
+            return ("IN_STRING_VAL", buffer, func_name,
+                    param_name, False, parsed_params)
+        elif state == "EXPECT_NUMBER_VAL":
+            if char in "-0123456789":
+                return ("IN_NUMBER_VAL", char, func_name, param_name,
+                        False, parsed_params)
+        elif state == "IN_NUMBER_VAL":
+            if char in "0123456789.":
+                return ("IN_NUMBER_VAL", buffer + char, func_name,
+                        param_name, False, parsed_params)
+            if buffer == "-":
+                return None
+            if char in " \n\t\r":
+                return ("EXPECT_PARAM_COMMA_OR_END", "", func_name, param_name,
+                        escaped, parsed_params | frozenset([param_name]))
+            fields = from_model_get_dict_fields(self.schemas[func_name])
+            if char == ",":
+                return ("EXPECT_PARAM_KEY_OR_END", "", func_name, param_name,
+                        escaped, parsed_params | frozenset([param_name]))
+            if char == "}" and all(key in parsed_params or key == param_name
+                                   for key in fields.keys()):
+                return ("EXPECT_END", "", func_name, param_name,
+                        escaped, parsed_params | frozenset([param_name]))
+        elif state == "EXPECT_BOOL_VAL":
+            if char in "tf":
+                return ("IN_BOOL_VAL", char, func_name, param_name,
+                        False, parsed_params)
+        elif state == "IN_BOOL_VAL":
+            if char in "truefals":
+                return ("IN_BOOL_VAL", buffer + char, func_name,
+                        param_name, False, parsed_params)
+            if char in string.whitespace:
+                return ("EXPECT_PARAM_COMMA_OR_END", "", func_name, param_name,
+                        escaped, parsed_params | frozenset([param_name]))
+            fields = from_model_get_dict_fields(self.schemas[func_name])
+            if char == ",":
+                return ("EXPECT_PARAM_KEY_OR_END", "", func_name, param_name,
+                        escaped, parsed_params | frozenset([param_name]))
+            if char == "}" and all(key in parsed_params or key == param_name
+                                   for key in fields.keys()):
+                return ("EXPECT_END", "", func_name, param_name,
+                        escaped, parsed_params | frozenset([param_name]))
+        elif state == "EXPECT_PARAM_COMMA_OR_END":
+            if char == ",":
+                return ("EXPECT_PARAM_KEY", "", func_name,
+                        param_name, False, parsed_params)
+            fields = from_model_get_dict_fields(self.schemas[func_name])
+            if char == "}" and all(key in parsed_params
+                                   for key in fields.keys()):
+                return ("EXPECT_END", "", func_name, param_name,
+                        escaped, parsed_params)
+        elif state == "EXPECT_END":
+            if char == "}":
+                return ("DONE", "", func_name, param_name,
+                        escaped, parsed_params)
+        return None

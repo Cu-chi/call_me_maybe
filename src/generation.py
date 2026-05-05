@@ -1,8 +1,8 @@
 from llm_sdk import Small_LLM_Model
-from src.constrainer import JSONConstrained, JSONState
+from src.constrainer import SchemaConstrainer, State
 import numpy as np
 from pydantic import BaseModel
-from typing import Any
+from typing import Any, Type
 import json
 
 
@@ -36,33 +36,44 @@ USER INPUT:
     return prompt
 
 
-def generate_function(prompt: str, llm: Small_LLM_Model,
+def generate_function(input: str, llm: Small_LLM_Model,
                       reversed_vocab: dict[int, str],
-                      models: dict[str, BaseModel]) -> str:
+                      functions: list[dict[str, Any]],
+                      models: dict[str, Type[BaseModel]]) -> str:
+    prompt = pre_prompt(input, functions)
     input_ids: list[int] = llm.encode(prompt)[0].tolist()
-    max_tokens: int = 50
+    max_tokens: int = 200
     generated_text: str = ""
-    constrainer: JSONConstrained = JSONConstrained(models)
+    constrainer = SchemaConstrainer(models, input)
+    cur_state: State | None = constrainer.initial_state()
+    # each state has an associated token ids list
+    cache: dict[State, list[int]] = {}
     for _ in range(max_tokens):
+        if cur_state is None:
+            return generated_text
         logits: list[float] = llm.get_logits_from_input_ids(input_ids)
 
-        allowed_chars: str = constrainer.get_allowed_chars()
-
         masked_logit = [float("-inf")] * len(logits)
-        for token_id, token_str in reversed_vocab.items():
-            if not token_str:
-                continue
-            if token_str[0] in allowed_chars and token_id < len(logits):
-                constrainer_tester: JSONConstrained = constrainer.clone()
-                if constrainer_tester.update_state(token_str):
-                    masked_logit[token_id] = logits[token_id]
+        if cur_state not in cache:
+            valid_tokens = []
+            for token_id, token_str in reversed_vocab.items():
+                if not token_str or token_id >= len(logits):
+                    continue
+                if constrainer.update_state(cur_state, token_str) is not None:
+                    valid_tokens.append(token_id)
+            cache[cur_state] = valid_tokens
+
+        for tid in cache[cur_state]:
+            masked_logit[tid] = logits[tid]
 
         next_token_id: int = int(np.argmax(masked_logit))
+        if masked_logit[next_token_id] == float("-inf"):
+            break
         input_ids.append(next_token_id)
         next_token_str = reversed_vocab[next_token_id]
         generated_text += next_token_str
-        constrainer.update_state(next_token_str)
+        cur_state = constrainer.update_state(cur_state, next_token_str)
         print(generated_text)
-        if generated_text.endswith("}") or not constrainer.state:
+        if cur_state is None or cur_state[0] == "DONE":
             break
     return generated_text
