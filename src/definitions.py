@@ -26,8 +26,8 @@ def get_functions_json(path: str) -> list[dict[str, Any]]:
 
 
 def create_models_from_json(functions: list[dict[str, Any]])\
-     -> dict[str, BaseModel]:
-    models: dict[str, BaseModel] = {}
+     -> dict[str, Type[BaseModel]]:
+    models: dict[str, Type[BaseModel]] = {}
     for func in functions:
         func_name: str = func["name"]
         params: dict[str, Any] = func.get('parameters', {})
