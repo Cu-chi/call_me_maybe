@@ -74,7 +74,7 @@ class SchemaConstrainer:
     def consume(self, state: str, buffer: str, func_name: str,
                 param_name: str, escaped: bool,
                 parsed_params: frozenset[str], char: str):
-        if state not in ["IN_PROMPT_VAL", "IN_NAME_VAL", "IN_STRING_VAL",
+        if state not in ["START", "IN_PROMPT_VAL", "IN_NAME_VAL", "IN_STRING_VAL",
                          "IN_NUMBER_VAL", "IN_BOOL_VAL"]:
             if char in string.whitespace:
                 return (state, buffer, func_name, param_name,
@@ -105,6 +105,12 @@ class SchemaConstrainer:
                 return ("IN_PROMPT_VAL", "", func_name, param_name,
                         escaped, parsed_params)
         elif state == "IN_PROMPT_VAL":
+            if escaped:
+                return ("IN_PROMPT_VAL", buffer + char, func_name,
+                        param_name, False, parsed_params)
+            if char == "\\":
+                return ("IN_PROMPT_VAL", buffer + char, func_name,
+                        param_name, True, parsed_params)
             if char == "\"":
                 if buffer == self.prompt:
                     return ("EXPECT_COMMA_PROMPT", "", func_name, param_name,
@@ -112,7 +118,7 @@ class SchemaConstrainer:
                 return None
             if self.prompt.startswith(buffer + char):
                 return (state, buffer + char, func_name, param_name,
-                        escaped, parsed_params)
+                        False, parsed_params)
         elif state == "EXPECT_COMMA_PROMPT":
             if char == ",":
                 return ("EXPECT_NAME_KEY", "", func_name, param_name,
@@ -211,7 +217,7 @@ class SchemaConstrainer:
                 return ("IN_STRING_VAL", buffer + char, func_name,
                         param_name, False, parsed_params)
             if char == "\\":
-                return ("IN_STRING_VAL", buffer, func_name,
+                return ("IN_STRING_VAL", buffer + char, func_name,
                         param_name, True, parsed_params)
             if char == "\"":
                 return ("EXPECT_PARAM_COMMA_OR_END", "", func_name, param_name,
