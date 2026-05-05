@@ -16,15 +16,15 @@ def pre_prompt(input: str, functions: list[dict[str, Any]]):
     prompt += "1. Analyze the USER INPUT and select the most appropriate "
     prompt += "function from the list above.\n"
     prompt += "2. Extract the required parameters from the USER INPUT.\n"
-    prompt += "3. If no function matches the request, output \"unknown\" "
-    prompt += "for the function name.\n"
-    prompt += "4. Output strictly valid JSON. Do not write explanations, "
+    prompt += "3. Output strictly valid JSON. Do not write explanations, "
     prompt += "markdown formatting, or any text outside the JSON object.\n"
+    prompt += "4. If a string is given, extract it the quotes"
+    prompt += " to use it in parameters\n"
     prompt += f"""
 EXPECTED JSON OUTPUT FORMAT:
 {{
   "prompt": "The original natural-language request",
-  "name": "The exact name of the selected function (or 'unknown')",
+  "name": "The exact name of the selected function",
   "parameters": {{
     "param_1": "extracted_value"
   }}
@@ -42,7 +42,7 @@ def generate_function(input: str, llm: Small_LLM_Model,
                       models: dict[str, Type[BaseModel]]) -> str:
     prompt = pre_prompt(input, functions)
     input_ids: list[int] = llm.encode(prompt)[0].tolist()
-    max_tokens: int = 200
+    max_tokens: int = 70
     generated_text: str = ""
     constrainer = SchemaConstrainer(models, input)
     cur_state: State | None = constrainer.initial_state()
@@ -62,7 +62,6 @@ def generate_function(input: str, llm: Small_LLM_Model,
                 if constrainer.update_state(cur_state, token_str) is not None:
                     valid_tokens.append(token_id)
             cache[cur_state] = valid_tokens
-
         for tid in cache[cur_state]:
             masked_logit[tid] = logits[tid]
 

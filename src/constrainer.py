@@ -56,7 +56,6 @@ class SchemaConstrainer:
     def __init__(self, models: dict[str, Type[BaseModel]], input_str: str):
         self.schemas = models
         self.prompt = json.dumps(input_str)[1:-1]
-        print(self.prompt)
 
     def initial_state(self) -> State:
         return ("START", "", "", "", False, frozenset())
@@ -74,11 +73,6 @@ class SchemaConstrainer:
     def consume(self, state: str, buffer: str, func_name: str,
                 param_name: str, escaped: bool,
                 parsed_params: frozenset[str], char: str):
-        if state not in ["START", "IN_PROMPT_VAL", "IN_NAME_VAL", "IN_STRING_VAL",
-                         "IN_NUMBER_VAL", "IN_BOOL_VAL"]:
-            if char in string.whitespace:
-                return (state, buffer, func_name, param_name,
-                        escaped, parsed_params)
         if state == "START":
             if char == "{":
                 return ("EXPECT_PROMPT_KEY", buffer, func_name,
@@ -146,12 +140,11 @@ class SchemaConstrainer:
                         escaped, parsed_params)
         elif state == "IN_NAME_VAL":
             if char == "\"":
-                if buffer in self.schemas or buffer == "unknown":
+                if buffer in self.schemas:
                     return ("EXPECT_COMMA_NAME", "", buffer, param_name,
                             escaped, parsed_params)
                 return None
-            if any(fname.startswith(buffer + char) for fname in self.schemas) \
-               or "unknown".startswith(buffer + char):
+            if any(fname.startswith(buffer + char) for fname in self.schemas):
                 return (state, buffer + char, func_name, param_name,
                         escaped, parsed_params)
         elif state == "EXPECT_COMMA_NAME":
@@ -180,9 +173,6 @@ class SchemaConstrainer:
                 return ("EXPECT_PARAM_KEY_OR_END", "", func_name, param_name,
                         escaped, parsed_params)
         elif state == "EXPECT_PARAM_KEY_OR_END":
-            if char == "}" and func_name == "unknown":
-                return ("EXPECT_END", "", func_name, param_name,
-                        escaped, parsed_params)
             if char == "\"":
                 return ("IN_PARAM_KEY", "", func_name, param_name,
                         escaped, parsed_params)
