@@ -74,6 +74,11 @@ class SchemaConstrainer:
     def consume(self, state: str, buffer: str, func_name: str,
                 param_name: str, escaped: bool,
                 parsed_params: frozenset[str], char: str):
+        if state not in ["IN_PROMPT_VAL", "IN_NAME_VAL", "IN_STRING_VAL",
+                         "IN_NUMBER_VAL", "IN_BOOL_VAL"]:
+            if char in string.whitespace:
+                return (state, buffer, func_name, param_name,
+                        escaped, parsed_params)
         if state == "START":
             if char == "{":
                 return ("EXPECT_PROMPT_KEY", buffer, func_name,
