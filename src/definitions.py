@@ -25,6 +25,15 @@ def get_functions_json(path: str) -> list[dict[str, Any]]:
     return functions
 
 
+def get_prompts_json(path: str) -> list[str]:
+    prompts_list: list[str] = []
+    with open(path, "r") as f:
+        prompts: list[dict[str, Any]] = json.load(f)
+    for prompt_dict in prompts:
+        prompts_list.append(prompt_dict["prompt"])
+    return prompts_list
+
+
 def create_models_from_json(functions: list[dict[str, Any]])\
      -> dict[str, Type[BaseModel]]:
     models: dict[str, Type[BaseModel]] = {}
