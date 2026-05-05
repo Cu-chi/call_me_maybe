@@ -24,7 +24,7 @@ def load_vocab(llm: Small_LLM_Model) -> dict[int, str]:
     return reversed_vocab
 
 
-def from_model_get_dict_fields(model: BaseModel) -> dict[str, Type]:
+def from_model_get_dict_fields(model: Type[BaseModel]) -> dict[str, Type]:
     fields: dict[str, Type] = {}
 
     for key in model.__pydantic_fields__:
