@@ -260,7 +260,7 @@ class SchemaConstrainer:
                         escaped, parsed_params | frozenset([param_name]))
         elif state == "EXPECT_PARAM_COMMA_OR_END":
             if char == ",":
-                return ("EXPECT_PARAM_KEY", "", func_name,
+                return ("EXPECT_PARAM_KEY_OR_END", "", func_name,
                         param_name, False, parsed_params)
             fields = from_model_get_dict_fields(self.schemas[func_name])
             if char == "}" and all(key in parsed_params
