@@ -245,11 +245,16 @@ class SchemaConstrainer:
                         False, parsed_params)
         elif state == "IN_BOOL_VAL":
             if char in "truefals":
+                if not "true".startswith(buffer + char) \
+                   and not "false".startswith(buffer + char):
+                    return None
                 return ("IN_BOOL_VAL", buffer + char, func_name,
                         param_name, False, parsed_params)
             if char in string.whitespace:
-                return ("EXPECT_PARAM_COMMA_OR_END", "", func_name, param_name,
-                        escaped, parsed_params | frozenset([param_name]))
+                if buffer == "true" or buffer == "false":
+                    return ("EXPECT_PARAM_COMMA_OR_END", "", func_name,
+                            param_name, escaped,
+                            parsed_params | frozenset([param_name]))
             fields = from_model_get_dict_fields(self.schemas[func_name])
             if char == ",":
                 return ("EXPECT_PARAM_KEY_OR_END", "", func_name, param_name,
