@@ -204,10 +204,10 @@ class SchemaConstrainer:
                         False, parsed_params)
         elif state == "IN_STRING_VAL":
             if escaped:
-                return ("IN_STRING_VAL", buffer + char, func_name,
+                return ("IN_STRING_VAL", buffer, func_name,
                         param_name, False, parsed_params)
             if char == "\\":
-                return ("IN_STRING_VAL", buffer + char, func_name,
+                return ("IN_STRING_VAL", buffer, func_name,
                         param_name, True, parsed_params)
             if char == "\"":
                 return ("EXPECT_PARAM_COMMA_OR_END", "", func_name, param_name,
