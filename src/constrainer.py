@@ -55,6 +55,11 @@ EXPECT_END
 class SchemaConstrainer:
     def __init__(self, models: dict[str, Type[BaseModel]], input_str: str):
         self.schemas = models
+        self.schemas_fields = {}
+        for func_name in self.schemas:
+            self.schemas_fields.update({
+                func_name: from_model_get_dict_fields(self.schemas[func_name])
+                })
         self.prompt = json.dumps(input_str)[1:-1]
 
     def initial_state(self) -> State:
@@ -181,18 +186,18 @@ class SchemaConstrainer:
                 return ("IN_PARAM_KEY", "", func_name, param_name,
                         escaped, parsed_params)
         elif state == "IN_PARAM_KEY":
-            fields = from_model_get_dict_fields(self.schemas[func_name])
             if char == "\"":
-                if buffer in fields.keys() and buffer not in parsed_params:
+                if buffer in self.schemas_fields[func_name].keys() \
+                   and buffer not in parsed_params:
                     return ("EXPECT_COLON_PARAM", "", func_name, buffer,
                             escaped, parsed_params)
-            if any(pname.startswith(buffer + char) for pname in fields.keys()):
+            if any(pname.startswith(buffer + char)
+                   for pname in self.schemas_fields[func_name].keys()):
                 return ("IN_PARAM_KEY", buffer + char, func_name, param_name,
                         escaped, parsed_params)
         elif state == "EXPECT_COLON_PARAM":
             if char == ":":
-                fields = from_model_get_dict_fields(self.schemas[func_name])
-                ptype = fields[param_name]
+                ptype = self.schemas_fields[func_name][param_name]
                 if ptype is str:
                     return ("EXPECT_STRING_VAL", "", func_name, param_name,
                             escaped, parsed_params)
@@ -231,12 +236,12 @@ class SchemaConstrainer:
             if char in " \n\t\r":
                 return ("EXPECT_PARAM_COMMA_OR_END", "", func_name, param_name,
                         escaped, parsed_params | frozenset([param_name]))
-            fields = from_model_get_dict_fields(self.schemas[func_name])
             if char == ",":
                 return ("EXPECT_PARAM_KEY_OR_END", "", func_name, param_name,
                         escaped, parsed_params | frozenset([param_name]))
-            if char == "}" and all(key in parsed_params or key == param_name
-                                   for key in fields.keys()):
+            if char == "}" \
+                and all(key in parsed_params or key == param_name
+                        for key in self.schemas_fields[func_name].keys()):
                 return ("EXPECT_END", "", func_name, param_name,
                         escaped, parsed_params | frozenset([param_name]))
         elif state == "EXPECT_BOOL_VAL":
@@ -255,21 +260,21 @@ class SchemaConstrainer:
                     return ("EXPECT_PARAM_COMMA_OR_END", "", func_name,
                             param_name, escaped,
                             parsed_params | frozenset([param_name]))
-            fields = from_model_get_dict_fields(self.schemas[func_name])
             if char == ",":
                 return ("EXPECT_PARAM_KEY_OR_END", "", func_name, param_name,
                         escaped, parsed_params | frozenset([param_name]))
-            if char == "}" and all(key in parsed_params or key == param_name
-                                   for key in fields.keys()):
+            if char == "}" \
+                and all(key in parsed_params or key == param_name
+                        for key in self.schemas_fields[func_name].keys()):
                 return ("EXPECT_END", "", func_name, param_name,
                         escaped, parsed_params | frozenset([param_name]))
         elif state == "EXPECT_PARAM_COMMA_OR_END":
             if char == ",":
                 return ("EXPECT_PARAM_KEY_OR_END", "", func_name,
                         param_name, False, parsed_params)
-            fields = from_model_get_dict_fields(self.schemas[func_name])
-            if char == "}" and all(key in parsed_params
-                                   for key in fields.keys()):
+            if char == "}" \
+                and all(key in parsed_params
+                        for key in self.schemas_fields[func_name].keys()):
                 return ("EXPECT_END", "", func_name, param_name,
                         escaped, parsed_params)
         elif state == "EXPECT_END":
