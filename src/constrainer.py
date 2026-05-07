@@ -100,9 +100,13 @@ class SchemaConstrainer:
                         escaped, parsed_params)
         elif state == "IN_PROMPT_VAL":
             if escaped:
+                if not self.prompt.startswith(buffer + char):
+                    return None
                 return ("IN_PROMPT_VAL", buffer + char, func_name,
                         param_name, False, parsed_params)
             if char == "\\":
+                if not self.prompt.startswith(buffer + char):
+                    return None
                 return ("IN_PROMPT_VAL", buffer + char, func_name,
                         param_name, True, parsed_params)
             if char == "\"":
