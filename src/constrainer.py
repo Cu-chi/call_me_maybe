@@ -63,16 +63,16 @@ class SchemaConstrainer:
     def update_state(self, current: State, token: str) -> State | None:
         state, buffer, func_name, param_name, escaped, parsed_params = current
         for char in token:
-            res = self.consume(state, buffer, func_name, param_name,
-                               escaped, parsed_params, char)
+            res = self._consume(state, buffer, func_name, param_name,
+                                escaped, parsed_params, char)
             if res is None:
                 return None
             state, buffer, func_name, param_name, escaped, parsed_params = res
         return (state, buffer, func_name, param_name, escaped, parsed_params)
 
-    def consume(self, state: str, buffer: str, func_name: str,
-                param_name: str, escaped: bool,
-                parsed_params: frozenset[str], char: str):
+    def _consume(self, state: str, buffer: str, func_name: str,
+                 param_name: str, escaped: bool,
+                 parsed_params: frozenset[str], char: str):
         if state == "START":
             if char == "{":
                 return ("EXPECT_PROMPT_KEY", buffer, func_name,
