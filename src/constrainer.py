@@ -182,6 +182,11 @@ class SchemaConstrainer:
                 return ("EXPECT_PARAM_KEY_OR_END", "", func_name, param_name,
                         escaped, parsed_params)
         elif state == "EXPECT_PARAM_KEY_OR_END":
+            if char == "}" \
+               and all(key in parsed_params or key == param_name
+                       for key in self.schemas_fields[func_name].keys()):
+                return ("EXPECT_END", "", func_name, param_name,
+                        escaped, parsed_params)
             if char == "\"":
                 return ("IN_PARAM_KEY", "", func_name, param_name,
                         escaped, parsed_params)
