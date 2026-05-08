@@ -65,8 +65,8 @@ class SchemaConstrainer:
     def initial_state(self) -> State:
         return ("START", "", "", "", False, set())
 
-    def post_prompt_state(self) -> State:
-        return ("EXPECT_NAME_KEY", "", "", "", False, set())
+    def post_name_state(self) -> State:
+        return ("IN_NAME_VAL", "", "", "", False, set())
 
     def update_state(self, current: State, token: str) -> State | None:
         state, buffer, func_name, param_name, escaped, parsed_params = current
