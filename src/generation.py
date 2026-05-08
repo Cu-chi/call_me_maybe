@@ -70,7 +70,8 @@ def generate_function(input: str, llm: Small_LLM_Model,
         next_token_str = reversed_vocab[next_token_id]
         generated_text += next_token_str
         cur_state = constrainer.update_state(cur_state, next_token_str)
-        print(generated_text)
+        print(generated_text, end='\r')
         if cur_state is None or cur_state[0] == "DONE":
             break
+    print()
     return generated_text
