@@ -27,3 +27,4 @@ https://medium.com/@adimodi96/from-logits-to-tokens-9a36feab9cab
 [constrained decoding](https://mbrenndoerfer.com/writing/constrained-decoding-structured-llm-output)
 [enum doc](https://docs.python.org/fr/3/library/enum.html)
 [tensor doc](https://medium.com/data-science/what-is-a-tensor-in-deep-learning-6dedd95d6507)
+[python argparse doc](https://docs.python.org/3/library/argparse.html)
