@@ -4,13 +4,13 @@ from typing import Type, Any
 
 
 class SchemaError(Exception):
-    def __init__(self, key, *args):
+    def __init__(self, key: str, *args: tuple[Any]) -> None:
         self.key = key
         super().__init__(*args)
 
 
 class SchemaTypeError(Exception):
-    def __init__(self, type, *args):
+    def __init__(self, type: str, *args: tuple[Any]) -> None:
         self.type = type
         super().__init__(*args)
 
@@ -46,9 +46,9 @@ def create_models_from_json(functions: list[dict[str, Any]])\
      -> dict[str, Type[BaseModel]]:
     models: dict[str, Type[BaseModel]] = {}
     for func in functions:
-        func_name: str = func.get("name", None)
+        func_name: str | None = func.get("name", None)
         if func_name is None:
-            return SchemaError("name")
+            raise SchemaError("name")
         params: dict[str, Any] | None = func.get('parameters', None)
         if params is None:
             raise SchemaError("parameters")
