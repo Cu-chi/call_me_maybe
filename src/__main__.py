@@ -39,7 +39,7 @@ def main() -> None:
         return
 
     output: list[dict[str, Any]] = []
-    missed: int = 0
+    generated: int = len(prompts)
     try:
         for prompt in prompts:
             print(f"Generating JSON for: '{prompt}'...")
@@ -49,12 +49,13 @@ def main() -> None:
                 data = json.loads(result)
                 output.append(data)
             except ValueError:
-                missed += 1
+                generated -= 1
                 print(f"Invalid JSON format, got: {result}")
-            os.makedirs(os.path.dirname(args.output), exist_ok=True)
-            with open(args.output, 'w+') as f:
-                json.dump(output, f, indent=4)
-            print(f"Done (missed: {missed})")
+        os.makedirs(os.path.dirname(args.output), exist_ok=True)
+        with open(args.output, 'w+') as f:
+            json.dump(output, f, indent=4)
+        print(f"File {args.output} created "
+              f"({generated}/{len(prompts)} functions)")
     except PermissionError:
         print(f"Error: not enought permissions for writing on '{args.output}'",
               file=sys.stderr)
