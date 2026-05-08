@@ -5,7 +5,7 @@ import string
 
 from src.utils import from_model_get_dict_fields
 
-State = tuple[str, str, str, str, bool, frozenset[str]]
+State = tuple[str, str, str, str, bool, set[str]]
 """Tuple that describes the current state of the schema
 0: State Key
 1: buffer (used during key/value generation)
@@ -63,7 +63,10 @@ class SchemaConstrainer:
         self.prompt = json.dumps(input_str)[1:-1]
 
     def initial_state(self) -> State:
-        return ("START", "", "", "", False, frozenset())
+        return ("START", "", "", "", False, set())
+
+    def post_prompt_state(self) -> State:
+        return ("EXPECT_NAME_KEY", "", "", "", False, set())
 
     def update_state(self, current: State, token: str) -> State | None:
         state, buffer, func_name, param_name, escaped, parsed_params = current
@@ -75,34 +78,64 @@ class SchemaConstrainer:
             state, buffer, func_name, param_name, escaped, parsed_params = res
         return (state, buffer, func_name, param_name, escaped, parsed_params)
 
+    @staticmethod
+    def get_allowed_first_chars(state: str) -> str | None:
+        if state == "START":
+            return "{"
+        if state in ("EXPECT_PROMPT_KEY", "EXPECT_NAME_KEY",
+                     "EXPECT_PARAMS_KEY"):
+            return "\""
+        if state == "EXPECT_PARAM_KEY_OR_END":
+            return "\"}"
+        if state in ("EXPECT_COLON_PROMPT", "EXPECT_COLON_NAME",
+                     "EXPECT_COLON_PARAMS", "EXPECT_COLON_PARAM"):
+            return ":"
+        if state in ("EXPECT_COMMA_PROMPT", "EXPECT_COMMA_NAME"):
+            return ","
+        if state == "EXPECT_PARAM_COMMA_OR_END":
+            return ",}"
+        if state in ("EXPECT_PROMPT_VAL", "EXPECT_NAME_VAL",
+                     "EXPECT_STRING_VAL"):
+            return "\""
+        if state == "EXPECT_NUMBER_VAL":
+            return "-0123456789"
+        if state == "EXPECT_BOOL_VAL":
+            return "tf"
+        if state == "EXPECT_PARAM_START":
+            return "{"
+        if state == "EXPECT_END":
+            return "}"
+        return None
+
     def _consume(self, state: str, buffer: str, func_name: str,
                  param_name: str, escaped: bool,
-                 parsed_params: frozenset[str], char: str):
+                 parsed_params: set[str], char: str) -> State | None:
+        ended: bool
         if state == "START":
             if char == "{":
-                return ("EXPECT_PROMPT_KEY", buffer, func_name,
-                        param_name, escaped, parsed_params)
+                return ("EXPECT_PROMPT_KEY", "", func_name,
+                        param_name, False, parsed_params)
         elif state == "EXPECT_PROMPT_KEY":
             if char == "\"":
-                return ("IN_PROMPT_KEY", buffer, func_name,
-                        param_name, escaped, parsed_params)
+                return ("IN_PROMPT_KEY", "", func_name,
+                        param_name, False, parsed_params)
         elif state == "IN_PROMPT_KEY":
             if char == "\"":
                 if buffer == "prompt":
                     return ("EXPECT_COLON_PROMPT", "", func_name, param_name,
-                            escaped, parsed_params)
+                            False, parsed_params)
                 return None
             if "prompt".startswith(buffer + char):
-                return (state, buffer + char, func_name, param_name,
-                        escaped, parsed_params)
+                return ("IN_PROMPT_KEY", buffer + char, func_name, param_name,
+                        False, parsed_params)
         elif state == "EXPECT_COLON_PROMPT":
             if char == ":":
                 return ("EXPECT_PROMPT_VAL", "", func_name, param_name,
-                        escaped, parsed_params)
+                        False, parsed_params)
         elif state == "EXPECT_PROMPT_VAL":
             if char == "\"":
                 return ("IN_PROMPT_VAL", "", func_name, param_name,
-                        escaped, parsed_params)
+                        False, parsed_params)
         elif state == "IN_PROMPT_VAL":
             if escaped:
                 if not self.prompt.startswith(buffer + char):
@@ -117,36 +150,36 @@ class SchemaConstrainer:
             if char == "\"":
                 if buffer == self.prompt:
                     return ("EXPECT_COMMA_PROMPT", "", func_name, param_name,
-                            escaped, parsed_params)
+                            False, parsed_params)
                 return None
             if self.prompt.startswith(buffer + char):
-                return (state, buffer + char, func_name, param_name,
+                return ("IN_PROMPT_VAL", buffer + char, func_name, param_name,
                         False, parsed_params)
         elif state == "EXPECT_COMMA_PROMPT":
             if char == ",":
                 return ("EXPECT_NAME_KEY", "", func_name, param_name,
-                        escaped, parsed_params)
+                        False, parsed_params)
         elif state == "EXPECT_NAME_KEY":
             if char == "\"":
                 return ("IN_NAME_KEY", "", func_name, param_name,
-                        escaped, parsed_params)
+                        False, parsed_params)
         elif state == "IN_NAME_KEY":
             if char == "\"":
                 if buffer == "name":
                     return ("EXPECT_COLON_NAME", "", func_name, param_name,
-                            escaped, parsed_params)
+                            False, parsed_params)
                 return None
             if "name".startswith(buffer + char):
-                return (state, buffer + char, func_name, param_name,
-                        escaped, parsed_params)
+                return ("IN_NAME_KEY", buffer + char, func_name, param_name,
+                        False, parsed_params)
         elif state == "EXPECT_COLON_NAME":
             if char == ":":
                 return ("EXPECT_NAME_VAL", "", func_name, param_name,
-                        escaped, parsed_params)
+                        False, parsed_params)
         elif state == "EXPECT_NAME_VAL":
             if char == "\"":
                 return ("IN_NAME_VAL", "", func_name, param_name,
-                        escaped, parsed_params)
+                        False, parsed_params)
         elif state == "IN_NAME_VAL":
             if char == "\"":
                 if buffer in self.schemas:
@@ -225,7 +258,7 @@ class SchemaConstrainer:
                         param_name, True, parsed_params)
             if char == "\"":
                 return ("EXPECT_PARAM_COMMA_OR_END", "", func_name, param_name,
-                        escaped, parsed_params | frozenset([param_name]))
+                        escaped, parsed_params | set([param_name]))
             return ("IN_STRING_VAL", buffer, func_name,
                     param_name, False, parsed_params)
         elif state == "EXPECT_NUMBER_VAL":
@@ -240,15 +273,16 @@ class SchemaConstrainer:
                 return None
             if char in " \n\t\r":
                 return ("EXPECT_PARAM_COMMA_OR_END", "", func_name, param_name,
-                        escaped, parsed_params | frozenset([param_name]))
-            if char == ",":
+                        escaped, parsed_params | set([param_name]))
+            ended = all(key in parsed_params
+                        for key in self.schemas_fields[func_name].keys()
+                        if key != param_name)
+            if char == "," and not ended:
                 return ("EXPECT_PARAM_KEY_OR_END", "", func_name, param_name,
-                        escaped, parsed_params | frozenset([param_name]))
-            if char == "}" \
-                and all(key in parsed_params or key == param_name
-                        for key in self.schemas_fields[func_name].keys()):
+                        escaped, parsed_params | set([param_name]))
+            if char == "}" and ended:
                 return ("EXPECT_END", "", func_name, param_name,
-                        escaped, parsed_params | frozenset([param_name]))
+                        escaped, parsed_params | set([param_name]))
         elif state == "EXPECT_BOOL_VAL":
             if char in "tf":
                 return ("IN_BOOL_VAL", char, func_name, param_name,
@@ -264,22 +298,23 @@ class SchemaConstrainer:
                 if buffer == "true" or buffer == "false":
                     return ("EXPECT_PARAM_COMMA_OR_END", "", func_name,
                             param_name, escaped,
-                            parsed_params | frozenset([param_name]))
-            if char == ",":
+                            parsed_params | set([param_name]))
+            ended = all(key in parsed_params
+                        for key in self.schemas_fields[func_name].keys()
+                        if key != param_name)
+            if char == "," and not ended:
                 return ("EXPECT_PARAM_KEY_OR_END", "", func_name, param_name,
-                        escaped, parsed_params | frozenset([param_name]))
-            if char == "}" \
-                and all(key in parsed_params or key == param_name
-                        for key in self.schemas_fields[func_name].keys()):
+                        escaped, parsed_params | set([param_name]))
+            if char == "}" and ended:
                 return ("EXPECT_END", "", func_name, param_name,
-                        escaped, parsed_params | frozenset([param_name]))
+                        escaped, parsed_params | set([param_name]))
         elif state == "EXPECT_PARAM_COMMA_OR_END":
-            if char == ",":
+            ended = all(key in parsed_params
+                        for key in self.schemas_fields[func_name].keys())
+            if char == "," and not ended:
                 return ("EXPECT_PARAM_KEY_OR_END", "", func_name,
                         param_name, False, parsed_params)
-            if char == "}" \
-                and all(key in parsed_params
-                        for key in self.schemas_fields[func_name].keys()):
+            if char == "}" and ended:
                 return ("EXPECT_END", "", func_name, param_name,
                         escaped, parsed_params)
         elif state == "EXPECT_END":
