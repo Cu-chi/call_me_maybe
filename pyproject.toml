@@ -20,3 +20,8 @@ members = [
 
 [tool.uv.sources]
 llm-sdk = { workspace = true, editable = true }
+
+[tool.mypy]
+exclude = [".venv","llm_sdk"]
+mypy_path = "llm_sdk"
+follow_imports = "skip"
