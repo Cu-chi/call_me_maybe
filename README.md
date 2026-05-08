@@ -21,3 +21,9 @@ output, ensuring near-perfect reliability even with a small 0.5B parameter model
 
 # Resources
 [uv documentation](https://docs.astral.sh/uv/)
+https://medium.com/@adimodi96/from-logits-to-tokens-9a36feab9cab
+[constrained decoding](https://www.aidancooper.co.uk/constrained-decoding/)
+[constrained decoding](https://medium.com/@docherty/controlling-your-llm-deep-dive-into-constrained-generation-1e561c736a20)
+[constrained decoding](https://mbrenndoerfer.com/writing/constrained-decoding-structured-llm-output)
+[enum doc](https://docs.python.org/fr/3/library/enum.html)
+[tensor doc](https://medium.com/data-science/what-is-a-tensor-in-deep-learning-6dedd95d6507)
