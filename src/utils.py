@@ -1,6 +1,6 @@
 from llm_sdk import Small_LLM_Model
 from pydantic import BaseModel
-from typing import Type
+from typing import Type, Any
 import json
 
 
@@ -24,11 +24,12 @@ def load_vocab(llm: Small_LLM_Model) -> dict[int, str]:
     return reversed_vocab
 
 
-def from_model_get_dict_fields(model: Type[BaseModel]) -> dict[str, Type]:
-    fields: dict[str, Type] = {}
+def from_model_get_dict_fields(model: Type[BaseModel]) -> dict[str, Type[Any]]:
+    fields: dict[str, Type[Any]] = {}
 
     for key in model.__pydantic_fields__:
-        field_type: Type | None = model.__pydantic_fields__[key].annotation
+        field_type: Type[Any] | None = \
+            model.__pydantic_fields__[key].annotation
         if field_type is not None:
             fields.update({key: field_type})
     return fields

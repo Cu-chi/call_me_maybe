@@ -7,7 +7,7 @@ class SchemaTypeError(Exception):
     pass
 
 
-def get_python_types(type_str: str) -> Type:
+def get_python_types(type_str: str) -> Type[Any]:
     if type_str == "number":
         return float
     elif type_str == "integer":
