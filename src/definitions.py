@@ -1,4 +1,5 @@
 import json
+import sys
 from pydantic import BaseModel, create_model
 from typing import Type, Any
 
@@ -28,25 +29,61 @@ def get_python_types(type_str: str) -> Type[Any]:
 
 
 def get_minified_functions_json(functions: list[dict[str, Any]]) -> str:
-    minified: str = ""
-    for function in functions:
-        minified += f"{function["name"]}: {function["description"]}\n"
-    return minified
+    try:
+        minified: str = ""
+        for function in functions:
+            minified += f"{function["name"]}: {function["description"]}\n"
+        return minified
+    except KeyError:
+        print("Error: A function definition is missing the key 'name' or "
+              "'description'",
+              file=sys.stderr)
+        sys.exit(1)
 
 
 def get_functions_json(path: str) -> list[dict[str, Any]]:
-    with open(path, "r") as f:
-        functions: list[dict[str, Any]] = json.load(f)
-    return functions
+    try:
+        with open(path, "r") as f:
+            functions: list[dict[str, Any]] = json.load(f)
+            return functions
+    except FileNotFoundError:
+        print(f"Error: File '{path}' not found.", file=sys.stderr)
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"Error: File '{path}' is not a valid JSON, syntax error at:",
+              file=sys.stderr)
+        print(f"line {e.lineno}, column {e.colno}: {e.msg}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: Unexpected error while reading '{path}':\n{e}",
+              file=sys.stderr)
+        sys.exit(1)
 
 
 def get_prompts_json(path: str) -> list[str]:
     prompts_list: list[str] = []
-    with open(path, "r") as f:
-        prompts: list[dict[str, Any]] = json.load(f)
-    for prompt_dict in prompts:
-        prompts_list.append(prompt_dict["prompt"])
-    return prompts_list
+    try:
+        with open(path, "r") as f:
+            prompts: list[dict[str, Any]] = json.load(f)
+            for prompt_dict in prompts:
+                prompts_list.append(prompt_dict["prompt"])
+            return prompts_list
+    except FileNotFoundError:
+        print(f"Error: File '{path}' not found.", file=sys.stderr)
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"Error: File '{path}' is not a valid JSON, syntax error at:",
+              file=sys.stderr)
+        print(f"line {e.lineno}, column {e.colno}: {e.msg}", file=sys.stderr)
+        sys.exit(1)
+    except KeyError:
+        print(f"Error: File '{path}': key 'prompt' is not in the dict",
+              file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: Unexpected error while reading '{path}':\n{e}",
+              file=sys.stderr)
+        sys.exit(1)
 
 
 def create_models_from_json(functions: list[dict[str, Any]])\

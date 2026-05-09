@@ -25,20 +25,20 @@ def main() -> None:
     except SchemaError as e:
         print(f"Error: key '{e.key}' is not in the function definition",
               file=sys.stderr)
-        return
+        sys.exit(1)
     except SchemaTypeError as e:
         print(f"Error: unknown type '{e.type}' in function definition",
               file=sys.stderr)
-        return
+        sys.exit(1)
     except KeyError:
         print("Error: format error in function definition", file=sys.stderr)
-        return
+        sys.exit(1)
     except FileNotFoundError as e:
         print(f"Error: {e}", file=sys.stderr)
-        return
+        sys.exit(1)
     except Exception as e:
         print(f"Error: {e}")
-        return
+        sys.exit(1)
 
     output: list[dict[str, Any]] = []
     generated: int = len(prompts)
