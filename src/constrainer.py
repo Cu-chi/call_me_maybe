@@ -230,7 +230,8 @@ class SchemaConstrainer:
                     return ("EXPECT_COLON_PARAM", "", func_name, buffer,
                             escaped, parsed_params)
             if any(pname.startswith(buffer + char)
-                   for pname in self.schemas_fields[func_name].keys()):
+                   for pname in self.schemas_fields[func_name].keys()
+                   if pname not in parsed_params):
                 return ("IN_PARAM_KEY", buffer + char, func_name, param_name,
                         escaped, parsed_params)
         elif state == "EXPECT_COLON_PARAM":
