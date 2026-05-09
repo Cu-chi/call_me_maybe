@@ -46,7 +46,7 @@ def generate_function(input: str, llm: Small_LLM_Model,
     prompt = pre_prompt(input, functions)
     generated_text: str = f"{{\"prompt\":\"{json.dumps(
         input)[1:-1]}\",\"name\":\""
-    input_ids: list[int] = llm.encode(prompt + generated_text)[0].tolist()
+    input_ids: list[int] = llm.encode(prompt + generated_text)
     max_tokens: int = 200
     constrainer = SchemaConstrainer(models, input)
     cur_state: State | None = constrainer.post_name_state()

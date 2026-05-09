@@ -1,10 +1,10 @@
 from src.definitions import create_models_from_json, \
     get_minified_functions_json, get_functions_json,  \
     get_prompts_json, SchemaError, SchemaTypeError
-from llm_sdk import Small_LLM_Model
 from src.utils import load_vocab
 from src.generation import generate_function
 from src.constrainer import State
+from src.model import Model
 import json
 import sys
 import os
@@ -16,7 +16,7 @@ from argparse import Namespace
 def main() -> None:
     try:
         args: Namespace = parse()
-        model = Small_LLM_Model()
+        model = Model()
         functions: str = get_functions_json(args.functions_definition)
         minified_functions: str = get_minified_functions_json(functions)
         prompts: list[str] = get_prompts_json(args.input)
