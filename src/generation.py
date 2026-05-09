@@ -2,7 +2,7 @@ from llm_sdk import Small_LLM_Model
 from src.constrainer import SchemaConstrainer, State
 import numpy as np
 from pydantic import BaseModel
-from typing import Any, Type
+from typing import Type
 import json
 from rich.live import Live
 from rich.panel import Panel
