@@ -4,22 +4,23 @@ import numpy as np
 from pydantic import BaseModel
 from typing import Any, Type
 import json
+from rich.live import Live
+from rich.panel import Panel
+from rich.syntax import Syntax
 
 
-def pre_prompt(input: str, functions: list[dict[str, Any]]) -> str:
-    tools_schema = json.dumps(functions, indent=2)
-    prompt: str = "You are an expert AI routing agent."
+def pre_prompt(input: str, functions: str) -> str:
+    prompt: str = "You are an expert AI routing agent.\n"
     prompt += "Your task is to map the user's natural "
     prompt += "language input to the exact function that can answer it."
-    prompt += f"\n\nAVAILABLE FUNCTIONS:\n{tools_schema}\n\n"
+    prompt += f"\n\nAVAILABLE FUNCTIONS:\n{functions}\n\n"
     prompt += "RULES:\n"
     prompt += "1. Analyze the USER INPUT and select the most appropriate "
     prompt += "function from the list above.\n"
     prompt += "2. Extract the required parameters from the USER INPUT.\n"
     prompt += "3. Output strictly valid JSON. Do not write explanations, "
     prompt += "markdown formatting, or any text outside the JSON object.\n"
-    prompt += "4. If a string is given, extract it the quotes"
-    prompt += " to use it in parameters\n"
+    prompt += "4. If a string is given, extract it from the quotes\n"
     prompt += f"""
 EXPECTED JSON OUTPUT FORMAT:
 {{
@@ -38,7 +39,7 @@ USER INPUT:
 
 def generate_function(input: str, llm: Small_LLM_Model,
                       reversed_vocab: dict[int, str],
-                      functions: list[dict[str, Any]],
+                      functions: str,
                       models: dict[str, Type[BaseModel]]) -> str:
     prompt = pre_prompt(input, functions)
     generated_text: str = f"{{\"prompt\":\"{json.dumps(
@@ -63,6 +64,9 @@ def generate_function(input: str, llm: Small_LLM_Model,
                     cur_state[0])
 
             for token_id, token_str in reversed_vocab.items():
+                if cur_state[0] == "IN_NUMBER_VAL":
+                    if token_id > 92:
+                        break
                 if allowed_first is not None\
                    and token_str[0] not in allowed_first:
                     continue

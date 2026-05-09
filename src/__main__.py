@@ -1,5 +1,6 @@
 from src.definitions import create_models_from_json, \
-    get_functions_json, get_prompts_json, SchemaError, SchemaTypeError
+    get_minified_functions_json, get_functions_json,  \
+    get_prompts_json, SchemaError, SchemaTypeError
 from llm_sdk import Small_LLM_Model
 from src.utils import load_vocab
 from src.generation import generate_function
@@ -15,8 +16,8 @@ def main() -> None:
     try:
         args: Namespace = parse()
         model = Small_LLM_Model()
-        functions: list[dict[str, Any]] = get_functions_json(
-            args.functions_definition)
+        functions: str = get_functions_json(args.functions_definition)
+        minified_functions: str = get_minified_functions_json(functions)
         prompts: list[str] = get_prompts_json(args.input)
         pydantic_models = create_models_from_json(functions)
         reversed_vocab: dict[int, str] = load_vocab(model)
@@ -44,7 +45,7 @@ def main() -> None:
         for prompt in prompts:
             print(f"Generating JSON for: '{prompt}'...")
             result = generate_function(prompt, model, reversed_vocab,
-                                       functions, pydantic_models)
+                                       minified_functions, pydantic_models)
             try:
                 data = json.loads(result)
                 output.append(data)

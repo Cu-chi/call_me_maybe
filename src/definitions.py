@@ -27,6 +27,13 @@ def get_python_types(type_str: str) -> Type[Any]:
     raise SchemaTypeError(type_str)
 
 
+def get_minified_functions_json(functions: list[dict[str, Any]]) -> str:
+    minified: str = ""
+    for function in functions:
+        minified += f"{function["name"]}: {function["description"]}\n"
+    return minified
+
+
 def get_functions_json(path: str) -> list[dict[str, Any]]:
     with open(path, "r") as f:
         functions: list[dict[str, Any]] = json.load(f)
