@@ -54,7 +54,7 @@ def generate_function(input: str, llm: Small_LLM_Model,
     panel: Panel = Panel(syntax,
                          title="Generating...",
                          border_style="blue")
-    with Live(panel, refresh_per_second=20) as live:
+    with Live(panel) as live:
         for _ in range(max_tokens):
             if cur_state is None:
                 return generated_text, cache
