@@ -4,6 +4,7 @@ from src.definitions import create_models_from_json, \
 from llm_sdk import Small_LLM_Model
 from src.utils import load_vocab
 from src.generation import generate_function
+from src.constrainer import State
 import json
 import sys
 import os
@@ -42,10 +43,12 @@ def main() -> None:
     output: list[dict[str, Any]] = []
     generated: int = len(prompts)
     try:
+        cache: dict[State, list[int]] = {}
         for prompt in prompts:
             print(f"Generating JSON for: '{prompt}'...")
-            result = generate_function(prompt, model, reversed_vocab,
-                                       minified_functions, pydantic_models)
+            result, cache = generate_function(prompt, model, reversed_vocab,
+                                              minified_functions,
+                                              pydantic_models, cache)
             try:
                 data = json.loads(result)
                 output.append(data)

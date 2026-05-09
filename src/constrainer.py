@@ -5,7 +5,7 @@ import string
 
 from src.utils import from_model_get_dict_fields
 
-State = tuple[str, str, str, str, bool, set[str]]
+State = tuple[str, str, str, str, bool, frozenset[str]]
 """Tuple that describes the current state of the schema
 0: State Key
 1: buffer (used during key/value generation)
@@ -63,10 +63,10 @@ class SchemaConstrainer:
         self.prompt = json.dumps(input_str)[1:-1]
 
     def initial_state(self) -> State:
-        return ("START", "", "", "", False, set())
+        return ("START", "", "", "", False, frozenset())
 
     def post_name_state(self) -> State:
-        return ("IN_NAME_VAL", "", "", "", False, set())
+        return ("IN_NAME_VAL", "", "", "", False, frozenset())
 
     def update_state(self, current: State, token: str) -> State | None:
         state, buffer, func_name, param_name, escaped, parsed_params = current
@@ -109,7 +109,7 @@ class SchemaConstrainer:
 
     def _consume(self, state: str, buffer: str, func_name: str,
                  param_name: str, escaped: bool,
-                 parsed_params: set[str], char: str) -> State | None:
+                 parsed_params: frozenset[str], char: str) -> State | None:
         ended: bool
         if state == "START":
             if char == "{":
@@ -259,7 +259,7 @@ class SchemaConstrainer:
                         param_name, True, parsed_params)
             if char == "\"":
                 return ("EXPECT_PARAM_COMMA_OR_END", "", func_name, param_name,
-                        escaped, parsed_params | set([param_name]))
+                        escaped, parsed_params | frozenset([param_name]))
             return ("IN_STRING_VAL", buffer, func_name,
                     param_name, False, parsed_params)
         elif state == "EXPECT_NUMBER_VAL":
@@ -276,16 +276,16 @@ class SchemaConstrainer:
                 return None
             if char in " \n\t\r":
                 return ("EXPECT_PARAM_COMMA_OR_END", "", func_name, param_name,
-                        escaped, parsed_params | set([param_name]))
+                        escaped, parsed_params | frozenset([param_name]))
             ended = all(key in parsed_params
                         for key in self.schemas_fields[func_name].keys()
                         if key != param_name)
             if char == "," and not ended:
                 return ("EXPECT_PARAM_KEY_OR_END", "", func_name, param_name,
-                        escaped, parsed_params | set([param_name]))
+                        escaped, parsed_params | frozenset([param_name]))
             if char == "}" and ended:
                 return ("EXPECT_END", "", func_name, param_name,
-                        escaped, parsed_params | set([param_name]))
+                        escaped, parsed_params | frozenset([param_name]))
         elif state == "EXPECT_BOOL_VAL":
             if char in "tf":
                 return ("IN_BOOL_VAL", char, func_name, param_name,
@@ -301,16 +301,16 @@ class SchemaConstrainer:
                 if buffer == "true" or buffer == "false":
                     return ("EXPECT_PARAM_COMMA_OR_END", "", func_name,
                             param_name, escaped,
-                            parsed_params | set([param_name]))
+                            parsed_params | frozenset([param_name]))
             ended = all(key in parsed_params
                         for key in self.schemas_fields[func_name].keys()
                         if key != param_name)
             if char == "," and not ended:
                 return ("EXPECT_PARAM_KEY_OR_END", "", func_name, param_name,
-                        escaped, parsed_params | set([param_name]))
+                        escaped, parsed_params | frozenset([param_name]))
             if char == "}" and ended:
                 return ("EXPECT_END", "", func_name, param_name,
-                        escaped, parsed_params | set([param_name]))
+                        escaped, parsed_params | frozenset([param_name]))
         elif state == "EXPECT_PARAM_COMMA_OR_END":
             ended = all(key in parsed_params
                         for key in self.schemas_fields[func_name].keys())
