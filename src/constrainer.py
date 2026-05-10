@@ -272,7 +272,7 @@ class SchemaConstrainer:
             if char in "0123456789.":
                 if len(buffer) > 30:
                     return None
-                if char == "." and "." in buffer:
+                if char == "." and ("." in buffer or buffer[-1] == "-"):
                     return None
                 return ("IN_NUMBER_VAL", buffer + char, func_name,
                         param_name, False, parsed_params)
