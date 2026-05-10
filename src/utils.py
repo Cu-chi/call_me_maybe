@@ -4,8 +4,8 @@ from typing import Type, Any
 import json
 
 
-def universal_vocab(llm: Small_LLM_Model):
-    reversed_vocab = {}
+def universal_vocab(llm: Small_LLM_Model) -> dict[int, str]:
+    reversed_vocab: dict[int, str] = {}
     vocab_size = len(llm._tokenizer)
 
     for token_id in range(vocab_size):

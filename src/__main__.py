@@ -17,7 +17,8 @@ def main() -> None:
     try:
         args: Namespace = parse()
         model = Model(model_name=args.model)
-        functions: str = get_functions_json(args.functions_definition)
+        functions: list[dict[str, Any]] = get_functions_json(
+            args.functions_definition)
         minified_functions: str = get_minified_functions_json(functions)
         prompts: list[str] = get_prompts_json(args.input)
         pydantic_models = create_models_from_json(functions)
