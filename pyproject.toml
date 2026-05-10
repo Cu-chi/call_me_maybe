@@ -24,5 +24,14 @@ llm-sdk = { workspace = true, editable = true }
 
 [tool.mypy]
 exclude = [".venv","llm_sdk"]
-mypy_path = "llm_sdk"
+
+[[tool.mypy.overrides]]
+module = [
+    "llm_sdk",
+    "llm_sdk.*"
+]
 follow_imports = "skip"
+
+[[tool.mypy.overrides]]
+module = "src.model"
+disallow_subclassing_any = false
