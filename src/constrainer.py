@@ -111,8 +111,6 @@ class SchemaConstrainer:
                  param_name: str, escaped: bool,
                  parsed_params: frozenset[str], char: str) -> State | None:
         ended: bool
-        if char in "\n\r\t":
-            return None
         if state == "START":
             if char == "{":
                 return ("EXPECT_PROMPT_KEY", "", func_name,
@@ -139,6 +137,8 @@ class SchemaConstrainer:
                 return ("IN_PROMPT_VAL", "", func_name, param_name,
                         False, parsed_params)
         elif state == "IN_PROMPT_VAL":
+            if char in "\n\r\t":
+                return None
             if escaped:
                 if not self.prompt.startswith(buffer + char):
                     return None
@@ -183,6 +183,8 @@ class SchemaConstrainer:
                 return ("IN_NAME_VAL", "", func_name, param_name,
                         False, parsed_params)
         elif state == "IN_NAME_VAL":
+            if char in "\n\r\t":
+                return None
             if char == "\"":
                 if buffer in self.schemas:
                     return ("EXPECT_COMMA_NAME", "", buffer, param_name,
@@ -253,6 +255,8 @@ class SchemaConstrainer:
                 return ("IN_STRING_VAL", "", func_name, param_name,
                         False, parsed_params)
         elif state == "IN_STRING_VAL":
+            if char in "\n\r\t":
+                return None
             if escaped:
                 return ("IN_STRING_VAL", buffer, func_name,
                         param_name, False, parsed_params)
@@ -272,12 +276,16 @@ class SchemaConstrainer:
             if char in "0123456789.":
                 if len(buffer) > 30:
                     return None
-                if char == "." and ("." in buffer or buffer[-1] == "-") or\
-                   self.schemas_fields[func_name][param_name] is int:
-                    return None
+                if char == ".":
+                    if "." in buffer or buffer[-1] == "-" \
+                       or self.schemas_fields[func_name][param_name] is int:
+                        return None
+                else:
+                    if buffer in ("0", "-0"):
+                        return None
                 return ("IN_NUMBER_VAL", buffer + char, func_name,
                         param_name, False, parsed_params)
-            if buffer == "-":
+            if buffer[-1] in ("-", "."):
                 return None
             if char in " \n\t\r":
                 return ("EXPECT_PARAM_COMMA_OR_END", "", func_name, param_name,
@@ -286,7 +294,7 @@ class SchemaConstrainer:
                         for key in self.schemas_fields[func_name].keys()
                         if key != param_name)
             if char == "," and not ended:
-                return ("EXPECT_PARAM_KEY_OR_END", "", func_name, param_name,
+                return ("EXPECT_PARAM_KEY", "", func_name, param_name,
                         escaped, parsed_params | frozenset([param_name]))
             if char == "}" and ended:
                 return ("EXPECT_END", "", func_name, param_name,
@@ -311,22 +319,26 @@ class SchemaConstrainer:
                         for key in self.schemas_fields[func_name].keys()
                         if key != param_name)
             if char == "," and not ended \
-               and buffer == "true" or buffer == "false":
-                return ("EXPECT_PARAM_KEY_OR_END", "", func_name, param_name,
+               and (buffer == "true" or buffer == "false"):
+                return ("EXPECT_PARAM_KEY", "", func_name, param_name,
                         escaped, parsed_params | frozenset([param_name]))
             if char == "}" and ended \
-               and buffer == "true" or buffer == "false":
+               and (buffer == "true" or buffer == "false"):
                 return ("EXPECT_END", "", func_name, param_name,
                         escaped, parsed_params | frozenset([param_name]))
         elif state == "EXPECT_PARAM_COMMA_OR_END":
             ended = all(key in parsed_params
                         for key in self.schemas_fields[func_name].keys())
             if char == "," and not ended:
-                return ("EXPECT_PARAM_KEY_OR_END", "", func_name,
+                return ("EXPECT_PARAM_KEY", "", func_name,
                         param_name, False, parsed_params)
             if char == "}" and ended:
                 return ("EXPECT_END", "", func_name, param_name,
                         escaped, parsed_params)
+        elif state == "EXPECT_PARAM_KEY":
+            if char == "\"":
+                return ("IN_PARAM_KEY", "", func_name,
+                        param_name, False, parsed_params)
         elif state == "EXPECT_END":
             if char == "}":
                 return ("DONE", "", func_name, param_name,
