@@ -8,10 +8,10 @@ install:
 	uv sync
 
 run:
-	uv run python -m $(SRC_DIR)
+	uv run python -m $(SRC_DIR) $(ARGS)
 
 debug:
-	uv run python -m pdb $(SRC_DIR)
+	uv run python -m pdb $(SRC_DIR) $(ARGS)
 
 clean:
 	@rm -rf $$(find . -type d -name "__pycache__") $$(find . -type d -name ".mypy_cache")
@@ -22,7 +22,7 @@ lint:
 
 lint-strict:
 	uv run python -m flake8 . --extend-exclude $(VENV),$(LIB_LLM_SDK)
-	uv run python -m mypy . $(MYPY_FLAGS) --strict
+	uv run python -m mypy . --strict
 
 test:
 	uv run python src/test.py
