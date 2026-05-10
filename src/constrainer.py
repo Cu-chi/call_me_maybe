@@ -111,6 +111,8 @@ class SchemaConstrainer:
                  param_name: str, escaped: bool,
                  parsed_params: frozenset[str], char: str) -> State | None:
         ended: bool
+        if char in "\n\r\t":
+            return None
         if state == "START":
             if char == "{":
                 return ("EXPECT_PROMPT_KEY", "", func_name,
