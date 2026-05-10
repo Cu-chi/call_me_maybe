@@ -309,10 +309,12 @@ class SchemaConstrainer:
             ended = all(key in parsed_params
                         for key in self.schemas_fields[func_name].keys()
                         if key != param_name)
-            if char == "," and not ended:
+            if char == "," and not ended \
+               and buffer == "true" or buffer == "false":
                 return ("EXPECT_PARAM_KEY_OR_END", "", func_name, param_name,
                         escaped, parsed_params | frozenset([param_name]))
-            if char == "}" and ended:
+            if char == "}" and ended \
+               and buffer == "true" or buffer == "false":
                 return ("EXPECT_END", "", func_name, param_name,
                         escaped, parsed_params | frozenset([param_name]))
         elif state == "EXPECT_PARAM_COMMA_OR_END":
