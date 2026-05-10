@@ -67,9 +67,8 @@ def generate_function(input: str, llm: Small_LLM_Model,
 
             if cur_state not in cache:
                 for token_id, token_str in reversed_vocab.items():
-                    if cur_state[0] == "IN_NUMBER_VAL":
-                        if token_id > 92:
-                            break
+                    if not token_str:
+                        continue
                     if allowed_first is not None\
                        and token_str[0] not in allowed_first:
                         continue
