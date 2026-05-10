@@ -24,4 +24,7 @@ lint-strict:
 	uv run python -m flake8 . --extend-exclude $(VENV),$(LIB_LLM_SDK)
 	uv run python -m mypy . $(MYPY_FLAGS) --strict
 
-.PHONY: install run debug clean lint lint-strict
+test:
+	uv run python src/test.py
+
+.PHONY: install run debug clean lint lint-strict test
