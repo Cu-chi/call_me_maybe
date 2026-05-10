@@ -4,16 +4,30 @@ from typing import Type, Any
 import json
 
 
-def load_vocab(llm: Small_LLM_Model) -> dict[int, str]:
-    path_vocab: str = llm.get_path_to_vocab_file()
-    BPE_REPLACEMENTS: dict[str, str] = {
-        "Ġ": " ",
-        "Ċ": "\n",
-        "ĉ": "\t",
-    }
+def universal_vocab(llm: Small_LLM_Model):
+    reversed_vocab = {}
+    vocab_size = len(llm._tokenizer)
 
-    with open(path_vocab, "r", encoding="utf-8") as f:
-        vocab: dict[str, int] = json.load(f)
+    for token_id in range(vocab_size):
+        real_string = llm._tokenizer.decode([token_id],
+                                            skip_special_tokens=True)
+        reversed_vocab[token_id] = real_string
+    return reversed_vocab
+
+
+def load_vocab(llm: Small_LLM_Model, name: str) -> dict[int, str]:
+    if name == "Qwen/Qwen3-0.6B":
+        path_vocab: str = llm.get_path_to_vocab_file()
+        BPE_REPLACEMENTS: dict[str, str] = {
+            "Ġ": " ",
+            "Ċ": "\n",
+            "ĉ": "\t",
+        }
+
+        with open(path_vocab, "r", encoding="utf-8") as f:
+            vocab: dict[str, int] = json.load(f)
+    else:
+        return universal_vocab(llm)
 
     reversed_vocab: dict[int, str] = {}
     for token_str, token_id in vocab.items():

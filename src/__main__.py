@@ -16,12 +16,12 @@ from argparse import Namespace
 def main() -> None:
     try:
         args: Namespace = parse()
-        model = Model()
+        model = Model(model_name=args.model)
         functions: str = get_functions_json(args.functions_definition)
         minified_functions: str = get_minified_functions_json(functions)
         prompts: list[str] = get_prompts_json(args.input)
         pydantic_models = create_models_from_json(functions)
-        reversed_vocab: dict[int, str] = load_vocab(model)
+        reversed_vocab: dict[int, str] = load_vocab(model, args.model)
     except SchemaError as e:
         print(f"Error: key '{e.key}' is not in the function definition",
               file=sys.stderr)
