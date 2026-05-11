@@ -79,7 +79,7 @@ def generate_function(input: str, llm: Small_LLM_Model,
                 cache[cur_state] = valid_tokens
 
             for token_id in cache[cur_state]:
-                if in_string_checker > 255:
+                if in_string_checker > 300:
                     if reversed_vocab[token_id] != "\"":
                         continue
                 masked_logit[token_id] = logits[token_id]
@@ -90,11 +90,11 @@ def generate_function(input: str, llm: Small_LLM_Model,
             input_ids.append(next_token_id)
             next_token_str = reversed_vocab[next_token_id]
             generated_text += next_token_str
-            if cur_state[0] == "IN_STRING_VAL":
+            cur_state = constrainer.update_state(cur_state, next_token_str)
+            if cur_state and cur_state[0] == "IN_STRING_VAL":
                 in_string_checker += len(next_token_str)
             else:
                 in_string_checker = 0
-            cur_state = constrainer.update_state(cur_state, next_token_str)
 
             syntax.code = generated_text
             live.update(panel)
