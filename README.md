@@ -112,6 +112,14 @@ run the project
 ```sh
 make run
 ```
+*optional arguments:*
+pass with
+```sh
+make run ARGS="..."
+```  
+`--functions_definition [path]`: functions definition file  
+`--input [path]`: function calling tests  
+`--output [path]`: function calling results   
 
 **useful**  
 check flake8 and mypy:
