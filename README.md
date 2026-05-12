@@ -55,8 +55,8 @@ Performance analysis on CPU **Intel(R) Core(TM) Ultra 7 265**, got:
 | Model | Size | Speed (Tokens/sec) |
 | :--- | :--- | :--- |
 | `Qwen/Qwen3-0.6B` | ~600M | **~2.2 t/s** |
-| `HuggingFaceTB/SmolLM2-360M-Instruct`| 360M | **~ 3.2t/s** |
-| `HuggingFaceTB/nanowhale-100m` | 100M | **~ 7.5t/s** |
+| `HuggingFaceTB/SmolLM2-360M-Instruct`| 360M | **~3.2t/s** |
+| `HuggingFaceTB/nanowhale-100m` | 100M | **~7.5t/s** |
 | `Harley-ml/Tenete-8M` | 8M | **~98.0 t/s** |
 
 ### Challenges faced
