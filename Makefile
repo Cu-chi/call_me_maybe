@@ -11,7 +11,7 @@ run:
 	uv run python -m $(SRC_DIR) $(ARGS)
 
 debug:
-	uv run python -m pdb $(SRC_DIR) $(ARGS)
+	uv run python -m pdb -m $(SRC_DIR) $(ARGS)
 
 clean:
 	@rm -rf $$(find . -type d -name "__pycache__") $$(find . -type d -name ".mypy_cache")
